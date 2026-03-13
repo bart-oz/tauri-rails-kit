@@ -12,39 +12,70 @@ on:
       - ".github/workflows/desktop.yml"
 
 jobs:
-  quality:
-    name: Rust quality checks
+  fmt:
+    name: Format check (rustfmt)
     runs-on: macos-latest
-
     defaults:
       run:
         working-directory: desktop
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
-
-      - name: Cache dependencies
-        uses: Swatinem/rust-cache@v2
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop
-
-      - name: Install npm dependencies
+      - run: npm install
         working-directory: .
-        run: npm install
+      - run: cargo fmt --check
 
-      - name: Format check
-        run: cargo fmt --check
+  clippy:
+    name: Lint check (clippy)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+      - run: npm install
+        working-directory: .
+      - run: cargo clippy -- -D warnings
 
-      - name: Clippy
-        run: cargo clippy -- -D warnings
+  check:
+    name: Compile check
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+      - run: npm install
+        working-directory: .
+      - run: cargo check
 
-      - name: Check
-        run: cargo check
-
-      - name: Test
-        run: cargo test
+  test:
+    name: Test check (cargo test)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+      - run: npm install
+        working-directory: .
+      - run: cargo test

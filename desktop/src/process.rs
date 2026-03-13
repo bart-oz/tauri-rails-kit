@@ -1,5 +1,5 @@
 use crate::ruby::{build_rails_command, find_rails_directory};
-use crate::state::AppState;
+use crate::state::{kill_processes_on_port, AppState};
 use crate::AppError;
 
 const PORT_SCAN_RANGE: u16 = 100;
@@ -44,6 +44,11 @@ fn setup_database(rails_dir: &std::path::Path) -> Result<(), AppError> {
 
 /// Sets up the database, then spawns the Rails server on `port`.
 pub(crate) fn spawn_rails_server(port: u16, state: &AppState) -> Result<(), AppError> {
+    // Clear any leftover process on this port before binding — guards against
+    // hot-reload races where the previous Rails hasn't fully exited yet.
+    #[cfg(unix)]
+    kill_processes_on_port(port);
+
     let rails_dir = find_rails_directory()?;
     setup_database(&rails_dir)?;
 
