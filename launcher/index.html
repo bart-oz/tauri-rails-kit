@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tauri-rails-kit</title>
+    <link rel="stylesheet" href="loading.css" />
+  </head>
+  <body>
+    <div class="launcher">
+      <span class="launcher__name">tauri-rails-kit</span>
+      <div class="launcher__spinner"></div>
+      <span class="launcher__status">Starting…</span>
+    </div>
+
+    <script type="module">
+      const { invoke } = window.__TAURI__.core;
+
+      async function waitForRails() {
+        try {
+          const port = await invoke("get_rails_port");
+          if (port) {
+            window.location.href = `http://localhost:${port}`;
+            return;
+          }
+        } catch (_) {
+          // Rails not ready yet — keep polling
+        }
+        setTimeout(waitForRails, 500);
+      }
+
+      waitForRails();
+    </script>
+  </body>
+</html>
