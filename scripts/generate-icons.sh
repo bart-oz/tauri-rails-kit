@@ -8,126 +8,49 @@ set -euo pipefail
 #   ./scripts/generate-icons.sh                  # generates placeholder
 #   ./scripts/generate-icons.sh path/to/icon.png # uses your own icon
 #
-# Requirements: macOS (uses sips + iconutil, both built-in)
+# Requirements: macOS, node_modules installed (npm install)
 # ============================================================
 
-ICONS_DIR="desktop/icons"
-CUSTOM_SOURCE="${1:-}"
+SOURCE="${1:-}"
 
-mkdir -p "$ICONS_DIR"
+if [ -z "$SOURCE" ]; then
+  echo "→ No source provided — generating placeholder..."
+  SOURCE="$(mktemp /tmp/trk_icon_XXXXXX.png)"
+  ruby - "$SOURCE" <<'EOF'
+require 'zlib'
 
-# ============================================================
-# Phase 1: Source image
-# ============================================================
-echo "→ Preparing source image..."
+# .b forces binary (ASCII-8BIT) encoding — required when mixing string literals
+# with pack() output, which is always binary in Ruby.
+def png_chunk(name, data)
+  body = name.b + data
+  [data.bytesize].pack('N') + body + [Zlib.crc32(body)].pack('N')
+end
 
-if [ -n "$CUSTOM_SOURCE" ]; then
-  if [ ! -f "$CUSTOM_SOURCE" ]; then
-    echo "Error: source file not found at $CUSTOM_SOURCE"
+path = ARGV[0]
+ihdr = png_chunk('IHDR', [1024, 1024, 8, 6, 0, 0, 0].pack('N2C5'))
+row  = "\x00".b + ([71, 85, 105, 255] * 1024).pack('C*')   # slate-grey RGBA
+idat = png_chunk('IDAT', Zlib::Deflate.deflate(row * 1024, Zlib::BEST_COMPRESSION))
+iend = png_chunk('IEND', ''.b)
+
+File.binwrite(path, "\x89PNG\r\n\x1a\n".b + ihdr + idat + iend)
+EOF
+  CLEANUP=1
+  echo "  Placeholder written"
+else
+  if [ ! -f "$SOURCE" ]; then
+    echo "Error: source file not found: $SOURCE"
     exit 1
   fi
-  SOURCE="$CUSTOM_SOURCE"
-  echo "  Using $SOURCE"
-else
-  SOURCE="$ICONS_DIR/source_1024.png"
-  python3 - << 'EOF'
-import struct, zlib
-
-def make_png(width, height, color):
-    def chunk(name, data):
-        c = name + data
-        return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-    r, g, b = color
-    raw = b''.join(b'\x00' + bytes([r, g, b] * width) for _ in range(height))
-    return (
-        b'\x89PNG\r\n\x1a\n'
-        + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
-        + chunk(b'IDAT', zlib.compress(raw))
-        + chunk(b'IEND', b'')
-    )
-
-with open('desktop/icons/source_1024.png', 'wb') as f:
-    f.write(make_png(1024, 1024, (71, 85, 105)))
-EOF
-  echo "  Generated placeholder 1024x1024 PNG"
+  CLEANUP=0
 fi
 
-# ============================================================
-# Phase 2: PNG sizes required by Tauri
-# ============================================================
-echo "→ Generating PNG sizes..."
+echo "→ Generating icons via Tauri CLI..."
+npx tauri icon "$SOURCE"
 
-sips -z 32 32     "$SOURCE" --out "$ICONS_DIR/32x32.png"       > /dev/null
-sips -z 128 128   "$SOURCE" --out "$ICONS_DIR/128x128.png"     > /dev/null
-sips -z 256 256   "$SOURCE" --out "$ICONS_DIR/128x128@2x.png"  > /dev/null
-sips -z 1024 1024 "$SOURCE" --out "$ICONS_DIR/icon.png"        > /dev/null
-
-echo "✓ PNG sizes generated"
-
-# ============================================================
-# Phase 3: icon.icns (macOS)
-# ============================================================
-echo "→ Generating icon.icns..."
-
-ICONSET="$ICONS_DIR/icon.iconset"
-mkdir -p "$ICONSET"
-
-sips -z 16   16   "$SOURCE" --out "$ICONSET/icon_16x16.png"       > /dev/null
-sips -z 32   32   "$SOURCE" --out "$ICONSET/icon_16x16@2x.png"    > /dev/null
-sips -z 32   32   "$SOURCE" --out "$ICONSET/icon_32x32.png"       > /dev/null
-sips -z 64   64   "$SOURCE" --out "$ICONSET/icon_32x32@2x.png"    > /dev/null
-sips -z 128  128  "$SOURCE" --out "$ICONSET/icon_128x128.png"     > /dev/null
-sips -z 256  256  "$SOURCE" --out "$ICONSET/icon_128x128@2x.png"  > /dev/null
-sips -z 256  256  "$SOURCE" --out "$ICONSET/icon_256x256.png"     > /dev/null
-sips -z 512  512  "$SOURCE" --out "$ICONSET/icon_256x256@2x.png"  > /dev/null
-sips -z 512  512  "$SOURCE" --out "$ICONSET/icon_512x512.png"     > /dev/null
-sips -z 1024 1024 "$SOURCE" --out "$ICONSET/icon_512x512@2x.png"  > /dev/null
-
-iconutil -c icns "$ICONSET" -o "$ICONS_DIR/icon.icns"
-rm -rf "$ICONSET"
-
-echo "✓ icon.icns generated"
-
-# ============================================================
-# Phase 4: icon.ico (Windows — included for Tauri config completeness)
-# ============================================================
-echo "→ Generating icon.ico..."
-
-python3 - << 'EOF'
-import struct, zlib
-
-def make_png(w, h, color):
-    def chunk(name, data):
-        c = name + data
-        return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-    r, g, b = color
-    raw = b''.join(b'\x00' + bytes([r, g, b] * w) for _ in range(h))
-    return (
-        b'\x89PNG\r\n\x1a\n'
-        + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
-        + chunk(b'IDAT', zlib.compress(raw))
-        + chunk(b'IEND', b'')
-    )
-
-png = make_png(32, 32, (71, 85, 105))
-offset = 6 + 16
-header = struct.pack('<HHH', 0, 1, 1)
-entry  = struct.pack('<BBBBHHII', 32, 32, 0, 0, 1, 32, len(png), offset)
-
-with open('desktop/icons/icon.ico', 'wb') as f:
-    f.write(header + entry + png)
-EOF
-
-echo "✓ icon.ico generated"
-
-# ============================================================
-# Cleanup placeholder source (not needed after generation)
-# ============================================================
-if [ -z "$CUSTOM_SOURCE" ]; then
-  rm -f "$ICONS_DIR/source_1024.png"
+if [ "$CLEANUP" = "1" ]; then
+  rm -f "$SOURCE"
 fi
 
 echo ""
-echo "✓ All icons generated in $ICONS_DIR"
-echo ""
-ls -lh "$ICONS_DIR"
+echo "✓ Icons generated in desktop/icons"
+ls -lh desktop/icons/
