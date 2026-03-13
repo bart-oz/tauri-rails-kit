@@ -1,0 +1,17 @@
+{
+  "name": "tauri-rails-kit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "find desktop/target/release desktop/target/debug -maxdepth 1 -name '_up_' -o -name 'resources' 2>/dev/null | xargs -r chmod -R u+w 2>/dev/null; tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
