@@ -94,7 +94,7 @@ fn stop_child(child: Option<std::process::Child>, label: &str) {
 
 /// SIGTERM → SIGKILL any process still holding `port` after managed shutdown.
 #[cfg(unix)]
-fn kill_processes_on_port(port: u16) {
+pub(crate) fn kill_processes_on_port(port: u16) {
     use std::process::Command;
 
     let Ok(output) = Command::new("lsof")

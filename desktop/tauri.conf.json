@@ -19,6 +19,7 @@
         "center": true
       }
     ],
+    "withGlobalTauri": true,
     "security": {
       "csp": null
     }
@@ -33,6 +34,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": []
+    "resources": [
+      "../webapp/app/**/*",
+      "../webapp/bin/*",
+      "../webapp/config/**/*",
+      "../webapp/db/**/*",
+      "../webapp/lib/**/*",
+      "../webapp/public/**/*",
+      "../webapp/Gemfile",
+      "../webapp/Gemfile.lock",
+      "../webapp/Rakefile"
+    ]
   }
 }
