@@ -57,8 +57,16 @@ pub(crate) fn find_bundled_ruby(rails_dir: &Path) -> Result<PathBuf, AppError> {
 
     log::info!("Looking for bundled Ruby (arch: {})", arch);
 
+    // Tauri bundles ../webapp/** as _up_/webapp/, so:
+    //   rails_dir  = Contents/Resources/_up_/webapp/
+    //   bundle_root = Contents/Resources/_up_/
+    //   bundle_root.parent() = Contents/Resources/      ← where our resources live
+    //
+    // resources/ruby-x86_64/** is bundled at Contents/Resources/resources/ruby-x86_64/
+    let resource_dir = bundle_root.parent().unwrap_or(&bundle_root);
     let candidates = [
-        bundle_root.join(format!("resources/ruby-{}", arch)),
+        resource_dir.join(format!("resources/ruby-{}", arch)), // production macOS bundle
+        bundle_root.join(format!("resources/ruby-{}", arch)),  // fallback
         bundle_root.join(format!("ruby-{}", arch)),
         bundle_root.join("ruby"),
     ];
