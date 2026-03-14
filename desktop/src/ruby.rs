@@ -135,7 +135,10 @@ pub(crate) fn build_ruby_env(rails_dir: &Path, ruby_dir: &Path) -> HashMap<Strin
     );
     env.insert("BUNDLE_PATH".to_string(), vendor_root.display().to_string());
     env.insert("BUNDLE_DEPLOYMENT".to_string(), "true".to_string());
-    env.insert("BUNDLE_WITHOUT".to_string(), "development:test:desktop".to_string());
+    env.insert(
+        "BUNDLE_WITHOUT".to_string(),
+        "development:test:desktop".to_string(),
+    );
 
     // Rails / app env.
     env.insert("RAILS_ENV".to_string(), "desktop".to_string());
