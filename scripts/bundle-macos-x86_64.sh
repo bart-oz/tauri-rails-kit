@@ -277,29 +277,6 @@ else
   info "No extension platform mismatch detected (system: $SYSTEM_PLATFORM)"
 fi
 
-# Trim gem bundle — remove files that are never needed at runtime.
-# Typical savings: 200-300MB on a standard Rails app.
-info "Trimming gem bundle..."
-GEMS_BEFORE=$(du -sm "$WEBAPP_DIR/vendor/bundle" 2>/dev/null | cut -f1)
-# Test/spec dirs only at top level of each gem — a recursive match would
-# delete library code (e.g. rack-test's lib/rack/test/).
-find "$WEBAPP_DIR/vendor/bundle/ruby/$RUBY_VERSION/gems" \
-  -mindepth 2 -maxdepth 2 -type d \
-  \( -name "test" -o -name "tests" -o -name "spec" -o -name "features" \
-  -o -name "benchmark" -o -name "benchmarks" \) \
-  -exec rm -rf {} + 2>/dev/null || true
-
-# Git metadata is never library code — safe to remove at any depth.
-find "$WEBAPP_DIR/vendor/bundle" -type d \
-  \( -name ".git" -o -name ".github" \) \
-  -exec rm -rf {} + 2>/dev/null || true
-find "$WEBAPP_DIR/vendor/bundle" -type f \
-  \( -name "*.rdoc" -o -name "*.ri" \
-  -o -name ".gitignore" -o -name ".gitkeep" \) \
-  -delete 2>/dev/null || true
-GEMS_AFTER=$(du -sm "$WEBAPP_DIR/vendor/bundle" 2>/dev/null | cut -f1)
-success "Gem bundle trimmed: ${GEMS_BEFORE}MB → ${GEMS_AFTER}MB"
-
 # Remove any of our dylibs that a previous script run may have copied into gem
 # directories. Those copies corrupt gem extensions for the system ruby (different
 # libruby UUID). The path-rewrite step runs in Phase 9, after system-ruby phases.
