@@ -46,6 +46,15 @@ jobs:
           workspaces: desktop
       - run: npm install
         working-directory: .
+      - name: Create resource stubs for CI
+        working-directory: .
+        run: |
+          mkdir -p webapp/storage
+          touch webapp/storage/ci.placeholder
+          mkdir -p webapp/vendor/bundle/ruby
+          touch webapp/vendor/bundle/ruby/ci.placeholder
+          mkdir -p desktop/resources/ruby-x86_64/bin
+          touch desktop/resources/ruby-x86_64/bin/ci.placeholder
       - run: cargo clippy -- -D warnings
 
   check:
@@ -62,6 +71,15 @@ jobs:
           workspaces: desktop
       - run: npm install
         working-directory: .
+      - name: Create resource stubs for CI
+        working-directory: .
+        run: |
+          mkdir -p webapp/storage
+          touch webapp/storage/ci.placeholder
+          mkdir -p webapp/vendor/bundle/ruby
+          touch webapp/vendor/bundle/ruby/ci.placeholder
+          mkdir -p desktop/resources/ruby-x86_64/bin
+          touch desktop/resources/ruby-x86_64/bin/ci.placeholder
       - run: cargo check
 
   test:
@@ -78,4 +96,13 @@ jobs:
           workspaces: desktop
       - run: npm install
         working-directory: .
+      - name: Create resource stubs for CI
+        working-directory: .
+        run: |
+          mkdir -p webapp/storage
+          touch webapp/storage/ci.placeholder
+          mkdir -p webapp/vendor/bundle/ruby
+          touch webapp/vendor/bundle/ruby/ci.placeholder
+          mkdir -p desktop/resources/ruby-x86_64/bin
+          touch desktop/resources/ruby-x86_64/bin/ci.placeholder
       - run: cargo test

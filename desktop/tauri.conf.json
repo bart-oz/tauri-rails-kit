@@ -38,12 +38,16 @@
       "../webapp/app/**/*",
       "../webapp/bin/*",
       "../webapp/config/**/*",
+      "../webapp/config.ru",
       "../webapp/db/**/*",
       "../webapp/lib/**/*",
       "../webapp/public/**/*",
+      "../webapp/storage/*",
+      "../webapp/vendor/bundle/**/*",
       "../webapp/Gemfile",
       "../webapp/Gemfile.lock",
-      "../webapp/Rakefile"
+      "../webapp/Rakefile",
+      "resources/ruby-x86_64/**/*"
     ]
   }
 }
