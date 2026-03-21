@@ -47,6 +47,11 @@ Rails.application.configure do
     config.web_console.development_only = false
   end
 
+  # Desktop apps have no shared session infrastructure, so a per-boot generated
+  # key is acceptable. The Rust process manager can inject SECRET_KEY_BASE via
+  # the environment to make the key stable across restarts (preserving cookies).
+  config.secret_key_base = ENV.fetch("SECRET_KEY_BASE") { SecureRandom.hex(64) }
+
   # No SSL — app serves to localhost only.
 
   config.log_tags = [ :request_id ]
