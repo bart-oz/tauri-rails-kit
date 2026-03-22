@@ -53,6 +53,8 @@ jobs:
           touch webapp/storage/ci.placeholder
           mkdir -p webapp/vendor/bundle/ruby
           touch webapp/vendor/bundle/ruby/ci.placeholder
+          mkdir -p desktop/resources/ruby/bin
+          touch desktop/resources/ruby/bin/ci.placeholder
           mkdir -p desktop/resources/ruby-x86_64/bin
           touch desktop/resources/ruby-x86_64/bin/ci.placeholder
       - run: cargo clippy -- -D warnings
@@ -78,6 +80,8 @@ jobs:
           touch webapp/storage/ci.placeholder
           mkdir -p webapp/vendor/bundle/ruby
           touch webapp/vendor/bundle/ruby/ci.placeholder
+          mkdir -p desktop/resources/ruby/bin
+          touch desktop/resources/ruby/bin/ci.placeholder
           mkdir -p desktop/resources/ruby-x86_64/bin
           touch desktop/resources/ruby-x86_64/bin/ci.placeholder
       - run: cargo check
@@ -103,6 +107,8 @@ jobs:
           touch webapp/storage/ci.placeholder
           mkdir -p webapp/vendor/bundle/ruby
           touch webapp/vendor/bundle/ruby/ci.placeholder
+          mkdir -p desktop/resources/ruby/bin
+          touch desktop/resources/ruby/bin/ci.placeholder
           mkdir -p desktop/resources/ruby-x86_64/bin
           touch desktop/resources/ruby-x86_64/bin/ci.placeholder
       - run: cargo test

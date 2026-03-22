@@ -18,17 +18,8 @@ pub(crate) fn verify_bundle_integrity(
                 missing: e.to_string(),
             })?;
 
-    let arch = if cfg!(target_arch = "aarch64") {
-        "arm64"
-    } else {
-        "x86_64"
-    };
-
     let required = [
-        (
-            "Ruby binary",
-            resource_dir.join(format!("resources/ruby-{}/bin/ruby", arch)),
-        ),
+        ("Ruby binary", resource_dir.join("resources/ruby/bin/ruby")),
         ("Rails Gemfile", resource_dir.join("_up_/webapp/Gemfile")),
     ];
 

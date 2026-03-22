@@ -25,8 +25,14 @@ _init_homebrew_dylibs() {
     "$HOMEBREW_PREFIX/opt/openssl@3/lib/libssl.3.dylib"
     "$HOMEBREW_PREFIX/opt/openssl@3/lib/libcrypto.3.dylib"
     "$HOMEBREW_PREFIX/opt/libyaml/lib/libyaml-0.2.dylib"
-    "$HOMEBREW_PREFIX/opt/zlib/lib/libz.1.dylib"
   )
+  # zlib: bundle from Homebrew if installed; otherwise rely on the system
+  # /usr/lib/libz.1.dylib which macOS guarantees on every machine.
+  # verify_no_absolute_paths already whitelists /usr/lib/, so system zlib
+  # references in compiled binaries are safe to leave as-is.
+  if [[ -f "$HOMEBREW_PREFIX/opt/zlib/lib/libz.1.dylib" ]]; then
+    HOMEBREW_DYLIBS+=("$HOMEBREW_PREFIX/opt/zlib/lib/libz.1.dylib")
+  fi
 }
 
 # ── Coloured output ───────────────────────────────────────────────────────────
@@ -52,11 +58,23 @@ check_prerequisites() {
     error "This script targets $ARCH but running on $current_arch. Use the correct script for this machine."
   fi
 
-  for brew_pkg in gmp openssl@3 libyaml zlib; do
+  # Verify a usable Ruby is in PATH. macOS ships Ruby 2.6 which is too old
+  # for bundler 4.x. Phases 6-8 require a Ruby 3+ interpreter.
+  local ruby_major
+  ruby_major=$(ruby -e "puts RUBY_VERSION.split('.').first" 2>/dev/null || echo "0")
+  if [[ "$ruby_major" -lt 3 ]]; then
+    error "Ruby in PATH is too old ($(ruby --version 2>/dev/null)). Bundler 4.x requires Ruby 3+. Install a modern Ruby and re-run:\n         brew install ruby\n         export PATH=\"\$(brew --prefix ruby)/bin:\$PATH\""
+  fi
+
+  for brew_pkg in gmp openssl@3 libyaml; do
     if [[ ! -d "$HOMEBREW_PREFIX/opt/$brew_pkg" ]]; then
       error "Homebrew package '$brew_pkg' not found at $HOMEBREW_PREFIX/opt/$brew_pkg. Run: brew install $brew_pkg"
     fi
   done
+  # zlib: Homebrew installation is optional — system zlib is acceptable.
+  if [[ ! -d "$HOMEBREW_PREFIX/opt/zlib" ]] && [[ ! -f "/usr/lib/libz.1.dylib" ]]; then
+    error "zlib not found. Run: brew install zlib"
+  fi
 
   for tool in install_name_tool codesign otool curl tar; do
     if ! command -v "$tool" &>/dev/null; then
@@ -155,33 +173,49 @@ print(os.path.relpath('$DYLIB_DEST', '$bundle_dir'))
       done
 
     elif [[ "$strategy" == "local" ]]; then
-      # Copy dylibs next to the .bundle and use @loader_path directly.
+      # Resolve libruby via DYLD_LIBRARY_PATH (bare name), NOT via @loader_path.
       #
-      # Check for any libruby reference (absolute OR already @loader_path).
-      # We must copy libruby + ALL Homebrew dylibs whenever libruby is present,
-      # because libruby was rewritten in Phase 5 to use @loader_path/libgmp etc.
-      # — those dylibs must be co-located or the transitive dlopen chain breaks.
-      # We separate "ensure deps are copied" from "rewrite reference" so this
-      # stays idempotent across repeated script runs.
+      # WHY: copying libruby next to each extension and using @loader_path causes
+      # every extension to load a different copy of libruby (different file path
+      # → different dyld image → separate Ruby VM). Two VMs in the same process
+      # break the object model: constants registered during Init_<ext>() land in
+      # one VM's registry but are looked up from the other, producing errors like
+      # "uninitialized constant JSON::Ext::Generator::GeneratorMethods".
+      #
+      # A bare dylib name bypasses @rpath and lets DYLD_LIBRARY_PATH (set by the
+      # Rust process manager to resources/ruby/lib/) resolve all extensions to the
+      # single in-bundle libruby that the ruby binary already loaded.
       local any_libruby_ref
       any_libruby_ref=$(otool -L "$bundle" 2>/dev/null \
         | grep "libruby" | awk '{print $1}' || true)
       if [[ -n "$any_libruby_ref" ]]; then
-        cp "$DYLIB_DEST/$LIBRUBY_NAME" "$bundle_dir/" 2>/dev/null || true
-        for _hb_dylib in "${HOMEBREW_DYLIBS[@]}"; do
-          cp "$DYLIB_DEST/$(basename "$_hb_dylib")" "$bundle_dir/" 2>/dev/null || true
-        done
-        # Only rewrite if the reference is still an absolute path
-        local old_libruby
-        old_libruby=$(otool -L "$bundle" 2>/dev/null \
+        # Absolute path reference → bare name
+        local old_abs_libruby
+        old_abs_libruby=$(otool -L "$bundle" 2>/dev/null \
           | grep "libruby" | grep -v "@" | awk '{print $1}' || true)
-        if [[ -n "$old_libruby" ]]; then
-          install_name_tool -change "$old_libruby" \
-            "@loader_path/$LIBRUBY_NAME" "$bundle"
+        if [[ -n "$old_abs_libruby" ]]; then
+          install_name_tool -change "$old_abs_libruby" "$LIBRUBY_NAME" "$bundle"
+        fi
+        # @rpath reference (from link time using libruby's install name) → bare name
+        local old_rpath_libruby
+        old_rpath_libruby=$(otool -L "$bundle" 2>/dev/null \
+          | grep "libruby" | grep "@rpath" | awk '{print $1}' || true)
+        if [[ -n "$old_rpath_libruby" ]]; then
+          install_name_tool -change "$old_rpath_libruby" "$LIBRUBY_NAME" "$bundle"
+        fi
+        # @loader_path reference (from a prior script run) → bare name
+        local old_loader_libruby
+        old_loader_libruby=$(otool -L "$bundle" 2>/dev/null \
+          | grep "libruby" | grep "@loader_path" | awk '{print $1}' || true)
+        if [[ -n "$old_loader_libruby" ]]; then
+          install_name_tool -change "$old_loader_libruby" "$LIBRUBY_NAME" "$bundle"
         fi
         fixed_any=true
       fi
 
+      # Homebrew dylibs directly referenced by an extension (e.g. libssl in the
+      # openssl gem) are still copied next to the .bundle and use @loader_path.
+      # These are not the Ruby VM, so multiple copies don't cause dual-VM issues.
       for dylib in "${HOMEBREW_DYLIBS[@]}"; do
         local name
         name=$(basename "$dylib")
