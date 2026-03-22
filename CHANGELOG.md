@@ -1,3 +1,25 @@
+## [0.2.0] - 2026-03-23
+
+### Added
+
+#### ARM64 Bundle Script (`scripts/bundle-macos-arm64.sh`)
+- 10-phase build-prep script for Apple Silicon (arm64) — mirrors Intel script structure
+- Phase 5b: ad-hoc codesign of bundled Ruby before first execution (required on ARM64)
+- Re-run safety: Ruby headers restored from system Ruby before Phase 6; symlink `arm64-darwin → arm64-darwin24` created if arch directory mismatch detected
+- Stdlib json conflict fix: removes `json 2.18.0` from bundled Ruby after Phase 3 (superseded by `json 2.19.1` in vendor/bundle; stdlib version lacks `const_defined?` guard causing crash on Rails boot)
+
+### Changed
+
+#### Rails Webapp
+- `sqlite3` gem now uses `force_ruby_platform: true` — forces source compilation instead of prebuilt platform gem (prebuilt has no Ruby 4.0 binaries)
+
+#### Desktop Shell
+- `find_bundled_ruby` searches `resources/ruby/` first (arch-agnostic), then `resources/ruby-{arch}/` (legacy) — both Intel and ARM64 bundles copy to `resources/ruby/`
+- `tauri.conf.json` resources glob updated to `resources/ruby/**/*` (arch-agnostic)
+
+#### CI
+- Resource stubs now include `desktop/resources/ruby/bin/` placeholder to satisfy Tauri glob validation
+
 ## [0.1.0] - 2026-03-15
 
 ### Added
