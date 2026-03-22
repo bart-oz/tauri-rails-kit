@@ -220,9 +220,35 @@ header "Phase 6: Vendor Rails gems (bundle install --deployment)"
 
 cd "$WEBAPP_DIR"
 
-bundle config set --local deployment true
-bundle config set --local path         vendor/bundle
-bundle config set --local without      "development test desktop"
+bundle config set --local deployment        true
+bundle config set --local path             vendor/bundle
+bundle config set --local without          "development test desktop"
+# Prevent precompiled platform gems (e.g. date-x86_64-darwin) — they embed
+# `-bundle_loader ruby` which expects symbols from the ruby executable.
+# Our Ruby is --enable-shared; symbols live in libruby.dylib, not the binary.
+# force_ruby_platform ensures every gem is compiled from source using the
+# bundled Ruby's LDSHARED (-dynamic -bundle -undefined dynamic_lookup).
+bundle config set --local force_ruby_platform true
+
+# Remove any already-installed precompiled platform gems so bundle install
+# replaces them with freshly compiled source variants.
+info "Checking for precompiled platform gems (from executable symbols)..."
+PRECOMPILED_REMOVED=0
+while IFS= read -r -d '' bundle_file; do
+  if nm -m "$bundle_file" 2>/dev/null | grep -q "(from executable)"; then
+    gem_dir=$(dirname "$(dirname "$bundle_file")")
+    info "  removing precompiled gem: $(basename "$gem_dir")"
+    rm -rf "$gem_dir"
+    PRECOMPILED_REMOVED=$((PRECOMPILED_REMOVED + 1))
+  fi
+done < <(find "$WEBAPP_DIR/vendor/bundle/ruby/$RUBY_VERSION/gems" \
+         -name "*.bundle" -print0 2>/dev/null)
+if [[ $PRECOMPILED_REMOVED -gt 0 ]]; then
+  info "Removed $PRECOMPILED_REMOVED precompiled gem(s) — will recompile from source"
+  rm -rf "$WEBAPP_DIR/vendor/bundle/ruby/$RUBY_VERSION/extensions"
+fi
+
+bundle lock --add-platform ruby 2>/dev/null || true
 
 info "Running bundle install (may take a minute on first run)..."
 bundle install 2>&1 | tail -5

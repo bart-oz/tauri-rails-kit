@@ -155,6 +155,7 @@ pub(crate) fn build_ruby_env(rails_dir: &Path, ruby_dir: &Path) -> HashMap<Strin
     env.insert("RUBYOPT".to_string(), "-W0".to_string());
     env.insert("LANG".to_string(), "en_US.UTF-8".to_string());
 
+
     env
 }
 
