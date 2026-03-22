@@ -19,10 +19,7 @@ pub(crate) fn verify_bundle_integrity(
             })?;
 
     let required = [
-        (
-            "Ruby binary",
-            resource_dir.join("resources/ruby/bin/ruby"),
-        ),
+        ("Ruby binary", resource_dir.join("resources/ruby/bin/ruby")),
         ("Rails Gemfile", resource_dir.join("_up_/webapp/Gemfile")),
     ];
 

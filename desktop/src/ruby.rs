@@ -65,9 +65,9 @@ pub(crate) fn find_bundled_ruby(rails_dir: &Path) -> Result<PathBuf, AppError> {
     // resources/ruby-x86_64/** is bundled at Contents/Resources/resources/ruby-x86_64/
     let resource_dir = bundle_root.parent().unwrap_or(bundle_root);
     let candidates = [
-        resource_dir.join("resources/ruby"),                    // production macOS bundle
+        resource_dir.join("resources/ruby"), // production macOS bundle
         resource_dir.join(format!("resources/ruby-{}", arch)), // legacy arch-specific name
-        bundle_root.join("resources/ruby"),                     // fallback
+        bundle_root.join("resources/ruby"),  // fallback
         bundle_root.join(format!("resources/ruby-{}", arch)),
         bundle_root.join("ruby"),
     ];
